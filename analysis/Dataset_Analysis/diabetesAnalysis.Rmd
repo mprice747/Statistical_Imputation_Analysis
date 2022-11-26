@@ -1,0 +1,167 @@
+---
+title: "diabetesAnalysis"
+author: "Alex Xiong"
+date: "11/24/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(glmnet)
+library(randomForest)
+library(gbm)
+library(e1071)
+library(dplyr)
+```
+
+
+```{r warning=FALSE}
+setwd('./..')
+diabetes = read.csv(paste0(getwd(), "/data/diabetes.csv"), header = TRUE)
+diabetes$class <- ifelse(diabetes$class == "tested_positive", 1, 0)
+```
+
+```{r}
+
+# LASSO for Diabetes 
+x <- as.matrix(select(diabetes, -c(class)))
+y <- as.matrix(select(diabetes, c(class))) 
+
+lasso_diabetes <- cv.glmnet(x, y, family = "binomial")
+
+lambda_min <- lasso_diabetes$lambda.min
+
+lasso_fit <- glmnet(x, y,
+                    family = "binomial", lambda = lambda_min)
+
+lasso_fit$beta
+```
+
+
+```{r}
+# Modify for training 
+diabetes_final <- select(diabetes, -c(skin))
+diabetes_final$class <- as.factor(diabetes$class)
+```
+
+
+
+```{r}
+
+# Random Forest for right m_try 
+set.seed(15)
+m_try_vec <- seq(1, 7)
+
+
+for (m_try in m_try_vec){
+  
+  rf <- randomForest(class ~., data = diabetes_final, ntree = 1000, mtry = m_try)
+  
+  rf_err <- rf$err.rate
+  
+  rf_oob <- rf_err[, "OOB"]
+  
+  min_pos_rf <- which.min(rf_oob)
+  
+  print(c(m_try, min_pos_rf, rf_oob[min_pos_rf]))
+  
+  
+}
+
+
+# 3 212 0.2135417
+```
+
+
+```{r}
+
+# Cross validation for Gradient Boosting Machine 
+gbm_diabetes <- data.frame(diabetes_final)
+gbm_diabetes$class <- as.numeric(gbm_diabetes$class) - 1
+depth_vec <- seq(1, 8)
+
+
+for (depth in depth_vec){
+  
+  gbm_try <- gbm(class ~., distribution = "bernoulli", data = gbm_diabetes, 
+                 n.trees = 10000, interaction.depth = depth, cv.folds = 5, shrinkage = 0.01)
+  
+  
+  cv_error <- gbm_try$cv.error
+  
+  tree_number_gbm <- which.min(cv_error)
+  
+  print(c(depth, tree_number_gbm, cv_error[tree_number_gbm]))
+  
+}
+
+
+# 2 604 0.9380454
+```
+
+```{r}
+
+# Linear works the best! 
+
+# Trying SVVM
+svm_linear <- tune(svm, class ~., data = diabetes_final, kernel = "linear", 
+     ranges = list(cost = c(1, 10, 25, 50, 100, 250, 300, 500)))
+
+summary(svm_linear)
+
+# 10 0.2292379
+```
+
+```{r}
+# Polynomial
+
+svm_polynomial <- tune(svm, class ~., data = diabetes_final, kernel = "polynomial", 
+     ranges = list(cost = c(1, 10, 12), 
+                   degree= c(2, 3, 4)))
+
+summary(svm_polynomial)
+
+
+
+```
+
+
+
+```{r}
+
+# Radial 
+svm_radial <- tune(svm, class ~., data = diabetes_final, kernel = "radial", 
+     ranges = list(cost = c(1, 5, 10, 15), 
+                   gamma = c(0.05, 0.20, 0.35, 0.5, 0.75, 1)))
+
+summary(svm_radial)
+```
+
+```{r}
+set.seed(2)
+
+# KNN
+diabetes_X <- select(diabetes_final, -c(class))
+diabetes_y <- diabetes_final["class"][, 1]
+k_vec <- seq(1, 20)
+
+knn_mat <- matrix(nrow = 20, ncol = 2)
+
+for (K in k_vec){
+  
+  knn_cv <- knn.cv(diabetes_X, diabetes_y, k = 2)
+  
+  error <- sum(diabetes_y == knn_cv)/length(knn_cv)
+  
+  knn_mat[K, ] <- c(K, error)
+}
+
+knn_mat
+
+# Reasonable value - 4
+```
+
