@@ -1,5 +1,5 @@
 # Statistical_Imputation_Analysis
-This project is an investigation of various statistical imputation techniques for use in machine learning. We discuss and implement various msny imputation techniques, like MICE, MissForest and KNN, and see how they affect the accruacy of various machine learning algorithms. In addiion, we also propose an ensemble imputation technique to limit the amount of imputed datasets while also minimizing variance. 
+This project is an investigation of various statistical imputation techniques for use in machine learning. We discuss and implement various imputation techniques, like MICE, MissForest and KNN, and see how they affect the accuracy of various machine learning algorithms. In addiion, we also propose an ensemble imputation technique to limit the amount of imputed datasets while also minimizing variance. 
 <br> 
 <br> 
 Our results show that no one imputation technique proves superior and that numberous imputation techniques should be investigated when one faces missing data. A detailed survey of each of the imputation methods tested and our full experiment results are located in the paper. 
